@@ -1,4 +1,5 @@
 import sys, os, argparse
+from operator import itemgetter
 import csv
 
 from matplotlib import pyplot as plt
@@ -6,7 +7,11 @@ from matplotlib import pyplot as plt
 from player import Player
 
 # USE KEYWORD ARGS FOR sort_batters and sort pitchers!
-def sort_batters(metric, n=float('inf'), year=2019, min_ab=0):
+
+# TODO - factor in abs, ips for multiple stints
+
+def sort_batters(metric, n=float('inf'), year="2019", min_ab=0, 
+                 r=True):
     """
     Sort a given number of batters in a given year by a provided metric. 
     If no number of players is provided, sort all players in the 
@@ -15,8 +20,38 @@ def sort_batters(metric, n=float('inf'), year=2019, min_ab=0):
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
+    if metric == 'GIDP':
+        r = False
+        
+    data = get_path('bat')
     
-def sort_pitchers(metric, n=float('inf'), year=2019, min_ip=0):
+    batters = []
+    
+    with open(data) as f:
+        reader = csv.DictReader(f)
+        
+        for row in reader:
+            if row['yearID'] == year:
+                repeat_player = False
+                pID = row['playerID'][0:7]
+                val = int(row[metric])
+                for i in range(len(batters)):
+                    if batters[i][0] == pID:
+                        n_val = batters[i][1] + val
+                        batters[i] = (pID, n_val)
+                        repeat_player = True
+                if int(row['AB']) > min_ab and repeat_player == False:
+                    batters.append((pID, val))   
+           
+    sb = sorted(batters, key=itemgetter(1), reverse=r)
+    
+    if n < len(batters):
+        return sb[:n]
+    else:
+        return sb
+    
+def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
+                  r=False):
     """
     Sort a given number of pitchers in a given year by a provided 
     metric. If no number of players is provided, sort all players in the 
@@ -25,7 +60,44 @@ def sort_pitchers(metric, n=float('inf'), year=2019, min_ip=0):
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
-
+    min_ip *= 3
+    if metric == 'SO':
+        r = True
+    
+    data = get_path('pit')
+    
+    pitchers = []
+    
+    with open(data) as f:
+        reader = csv.DictReader(f)
+        
+        for row in reader:
+            if row['yearID'] == year:
+                repeat_player = False
+                pID = row['playerID'][0:7]
+                if metric != 'ERA' and metric != 'BAOpp':
+                    val = int(row[metric])
+                else:
+                    if row[metric] != '':
+                        val = float(row[metric])
+                for i in range(len(pitchers)):
+                    if pitchers[i][0] == pID:
+                        if metric != 'ERA' and metric != 'BAOpp':
+                            n_val = pitchers[i][1] + val
+                        else:
+                            n_val = (pitchers[i][1] + val) / 2
+                        pitchers[i] = (pID, n_val)
+                        repeat_player = True
+                if int(row['IPouts']) > min_ip and repeat_player == False:
+                    pitchers.append((pID, val))   
+           
+    sp = sorted(pitchers, key=itemgetter(1), reverse=r)
+    
+    if n < len(pitchers):
+        return sp[:n]
+    else:
+        return sp
+    
 # Represent player name as tuple (last, first)
 def get_stat(year, player_name, player_type, stat):
     """Get a certain stat based on the arguments provided."""
@@ -73,8 +145,51 @@ def print_stats(player_name, stats):
         for key in stats.keys():
             print('{0}: {1}'.format(key, stats[key]))
                 
-def plot_stats(players):
+def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0):
     """Plot stats based on the arguments provided."""
+    
+    incr_values_b = {'G': 20, 'AB': 50, 'R': 10, 'H': 20, '2B': 5, 
+                     '3B': 1, 'HR': 5, 'RBI': 10, 'BB': 10, 'SO': 20,
+                     'IBB': 2, 'HBP': 2, 'SH': 2, 'SF': 1, 'GIDP': 2}
+    
+    if player_type == 'bat':
+        stats = sort_batters(metric, n, year, min_ab, r=False)
+        incr_value = incr_values_b[metric]
+    elif player_type == 'pit':
+        stats = sort_batters(metric, n, year, min_ab, r=False)
+    else:
+        raise ValueError
+    
+    if incr_value < 5:
+        w = 1
+    elif incr_value < 10:
+        w = 3
+    else:
+        w = 4
+
+    values = [stats[i][1] for i in range(0, len(stats))]
+    groups = []
+    max_val = stats[-1][1]
+    grp_val = 0
+    i = 0
+    while grp_val < max_val:
+        cv = 0
+        while i < len(values) and values[i] < (grp_val+incr_value):
+            cv += 1
+            i += 1
+        groups.append(cv)
+        grp_val += incr_value
+        
+    x_labels = [i for i in range(0, max_val, incr_value)]
+    
+    plt.bar(x_labels, groups, width=w, tick_label=x_labels)
+    
+    title = metric + ', ' + year
+    plt.title(title, fontsize=24)
+    plt.xlabel('Total ' + metric, fontsize=12)
+    plt.ylabel('Number of players', fontsize=12)
+    
+    plt.show()
     
 def name_in_dataset(player_name, player_type):
     """Return true if the player is in the data set and false otherwise."""
@@ -103,11 +218,7 @@ def get_path(query):
     
 def main():
     """Main for baseball_stats."""
-    pn = ('myers', 'wil')
-    print_stats(pn, (get_stats('2015', pn, 'bat')))
-    
-    pn_2 = ('ohtani', 'shohei')
-    print_stats(pn_2, (get_stat('2018', pn_2, 'pit', 'SO')))
+    plot_metric_stats('bat', 'RBI')
     
 if __name__ == '__main__':
     main()
