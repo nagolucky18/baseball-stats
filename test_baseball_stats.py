@@ -122,6 +122,8 @@ class PlayerTestCase(unittest.TestCase):
         last_hitter = ('villajo', 176)
         self.assertEqual(hit_leaderboard[-1], last_hitter)
         
+        # TEST CASE FAILS BECAUSE ADDITION OF MULTIPLE STINT METRICS
+        # HAS NOT BEEN IMPLEMENTED.
         era_leaderboard = bst.sort_pitchers('ERA', min_ip=213)
         last_pitcher = ('bauertr', 4.48)
         self.assertEqual(era_leaderboard[-1], last_pitcher)

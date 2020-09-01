@@ -8,7 +8,9 @@ from player import Player
 
 # USE KEYWORD ARGS FOR sort_batters and sort pitchers!
 
-# TODO - factor in abs, ips for multiple stints
+# TODO - factor in abs, X - ips for multiple stints
+#      X - differentiate between players with same name
+#      - fixed bar width for chart
 
 def sort_batters(metric, n=float('inf'), year="2019", min_ab=0, 
                  r=True):
@@ -61,7 +63,7 @@ def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
     relevant metric.
     """
     min_ip *= 3
-    if metric == 'SO':
+    if metric == 'SO' or metric == 'W' or metric == 'GIDP':
         r = True
     
     data = get_path('pit')
@@ -75,21 +77,46 @@ def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
             if row['yearID'] == year:
                 repeat_player = False
                 pID = row['playerID'][0:7]
+                if row['playerID'][-2:] != '01':
+                    pID = row['playerID']
                 if metric != 'ERA' and metric != 'BAOpp':
                     val = int(row[metric])
                 else:
                     if row[metric] != '':
-                        val = float(row[metric])
+                        if metric == 'ERA':
+                            val = (int(row['ER']), int(row['IPouts']))
+                        
+                ip = int(row['IPouts'])
+                
+                # Check to see whether the stats quantify stats from
+                # a players additional stints.
                 for i in range(len(pitchers)):
                     if pitchers[i][0] == pID:
                         if metric != 'ERA' and metric != 'BAOpp':
                             n_val = pitchers[i][1] + val
                         else:
-                            n_val = (pitchers[i][1] + val) / 2
-                        pitchers[i] = (pID, n_val)
+                            # Averaging ERA does not work this way.
+                            n_val = (pitchers[i][1][0] + int(row['ER']), 
+                                pitchers[i][1][1] + int(row['IPouts']))
+                            ip += pitchers[i][2]
+                        pitchers[i] = (pID, n_val, ip)
                         repeat_player = True
-                if int(row['IPouts']) > min_ip and repeat_player == False:
-                    pitchers.append((pID, val))   
+                        
+                if repeat_player == False:
+                    pitchers.append((pID, val, ip))   
+                    
+    # Lengthy and confusing implementation -> trim down if possible.
+    if metric == 'ERA':
+        for i in range(len(pitchers)):
+            pitchers[i] = (pitchers[i][0], round((((pitchers[i][1][0]*3)/pitchers[i][1][1]) * 9),2), pitchers[i][2])
+    
+    i = 0
+    while i < len(pitchers):
+        if pitchers[i][2] < min_ip:
+            pitchers.remove(pitchers[i]);
+            continue
+        pitchers[i] = (pitchers[i][0], pitchers[i][1])
+        i += 1
            
     sp = sorted(pitchers, key=itemgetter(1), reverse=r)
     
@@ -144,7 +171,10 @@ def print_stats(player_name, stats):
             player_name[1].title()))
         for key in stats.keys():
             print('{0}: {1}'.format(key, stats[key]))
-                
+             
+            
+# Try setting same number of bins to make bar width consistent across
+# all metrics!
 def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0):
     """Plot stats based on the arguments provided."""
     
@@ -152,37 +182,74 @@ def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0
                      '3B': 1, 'HR': 5, 'RBI': 10, 'BB': 10, 'SO': 20,
                      'IBB': 2, 'HBP': 2, 'SH': 2, 'SF': 1, 'GIDP': 2}
     
+    # SH and SF not currently supported. Database must be manually evaluated.
+    incr_values_p = {'W': 2, 'L': 2, 'G': 10, 'GS': 3, 'CG': 1, 'SHO': 1,
+                     'SV': 4, 'IPouts': 100, 'H': 20, 'ER': 10, 'HR': 4, 
+                     'BB': 10, 'SO': 30, 'BAOpp': 0.05, 'ERA': 0.5, 
+                     'IBB': 1, 'WP': 2, 'HBP': 2, 'BK': 1, 'BFP': 100,
+                     'GF': 5, 'R': 10, 'SH': 0, 'SF': 0, 'GIDP': 3}
+    
+    
     if player_type == 'bat':
         stats = sort_batters(metric, n, year, min_ab, r=False)
-        incr_value = incr_values_b[metric]
+        # incr_value = incr_values_b[metric]
     elif player_type == 'pit':
-        stats = sort_batters(metric, n, year, min_ab, r=False)
+        stats = sort_pitchers(metric, n, year, min_ab, r=False)
+        # incr_value = incr_values_p[metric]
     else:
         raise ValueError
     
-    if incr_value < 5:
+    """
+    if incr_value < 1:
+        w = 0.35
+    elif incr_value < 5:
         w = 1
     elif incr_value < 10:
         w = 3
     else:
         w = 4
-
+    """
+    if player_type == 'pit' and (metric == 'SO' or metric == 'W' or metric == 'GIDP'):
+        stats.reverse()
+    
     values = [stats[i][1] for i in range(0, len(stats))]
     groups = []
-    max_val = stats[-1][1]
+    if metric == 'ERA':
+        max_val = 6.0
+    else:
+        max_val = stats[-1][1]
+    
+    if metric == 'ERA':
+        incr_val = 0.6
+    else:
+        incr_val = max_val // 10
+
     grp_val = 0
     i = 0
     while grp_val < max_val:
         cv = 0
-        while i < len(values) and values[i] < (grp_val+incr_value):
+        while i < len(values) and values[i] < (grp_val+incr_val):
             cv += 1
             i += 1
         groups.append(cv)
-        grp_val += incr_value
-        
-    x_labels = [i for i in range(0, max_val, incr_value)]
+        grp_val += incr_val
     
-    plt.bar(x_labels, groups, width=w, tick_label=x_labels)
+    if metric == 'ERA' or metric == 'BAopp':
+        x_labels = []
+        i = 0
+        while i < max_val:
+            x_labels.append(round(i,2))
+            i += incr_val
+    else:
+        x_labels = [i for i in range(0, max_val, incr_val)]
+        
+    if metric == 'ERA':
+        w = max_val / 10
+    else:
+        w = max_val // 10
+    
+    plt.bar(x_labels, groups, width=w, tick_label=x_labels,
+                edgecolor=(0,0,0), linewidth=1)
     
     title = metric + ', ' + year
     plt.title(title, fontsize=24)
@@ -218,7 +285,7 @@ def get_path(query):
     
 def main():
     """Main for baseball_stats."""
-    plot_metric_stats('bat', 'RBI')
+    plot_metric_stats('bat', '2B')
     
 if __name__ == '__main__':
     main()
