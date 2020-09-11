@@ -12,8 +12,7 @@ from player import Player
 #      X - differentiate between players with same name
 #      - fixed bar width for chart
 
-def sort_batters(metric, n=float('inf'), year="2019", min_ab=0, 
-                 r=True):
+def sort_batters(year, metric, n, min_ab, r=True):
     """
     Sort a given number of batters in a given year by a provided metric. 
     If no number of players is provided, sort all players in the 
@@ -22,8 +21,10 @@ def sort_batters(metric, n=float('inf'), year="2019", min_ab=0,
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
-    if metric == 'GIDP':
-        r = False
+    print(n)
+    
+    if n == 'A':
+        n = float('inf');
         
     data = get_path('bat')
     
@@ -52,8 +53,7 @@ def sort_batters(metric, n=float('inf'), year="2019", min_ab=0,
     else:
         return sb
     
-def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
-                  r=False):
+def sort_pitchers(year, metric, n, min_ip, r=False):
     """
     Sort a given number of pitchers in a given year by a provided 
     metric. If no number of players is provided, sort all players in the 
@@ -62,6 +62,11 @@ def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
+    print(n)
+    
+    if n == 'A':
+        n = float('inf');
+        
     min_ip *= 3
     if metric == 'SO' or metric == 'W' or metric == 'GIDP':
         r = True
@@ -124,9 +129,16 @@ def sort_pitchers(metric, n=float('inf'), year="2019", min_ip=0,
         return sp[:n]
     else:
         return sp
+        
+def sort_players(player_type, year, metric, n, minimum):
+    """Sort players according to the player_type provided."""
+    if player_type == 'bat':
+        return sort_batters(year, metric, int(n), int(minimum))
+    elif player_type == 'pit':
+        return sort_pitchers(year, metric, int(n), int(minimum))
     
 # Represent player name as tuple (last, first)
-def get_stat(year, player_name, player_type, stat):
+def get_stat(player_type, year, player_name, stat):
     """Get a certain stat based on the arguments provided."""
     if not name_in_dataset(player_name, player_type):
         raise ValueError
@@ -135,13 +147,13 @@ def get_stat(year, player_name, player_type, stat):
         
     with open(data) as f:
         reader = csv.DictReader(f)
-        
+
         lookup_name = player_name[0][0:5] + player_name[1][0:2] + '01'
         for row in reader:
             if row['playerID'] == lookup_name and row['yearID'] == year:
                     return {stat: row[stat]}
     
-def get_stats(year, player_name, player_type):
+def get_stats(player_type, year, player_name):
     """Get stats based on the arguments provided."""
     if not name_in_dataset(player_name, player_type):
         raise ValueError
@@ -175,7 +187,7 @@ def print_stats(player_name, stats):
             
 # Try setting same number of bins to make bar width consistent across
 # all metrics!
-def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0):
+def plot_metric_stats(player_type, year, metric, n, minimum):
     """Plot stats based on the arguments provided."""
     
     incr_values_b = {'G': 20, 'AB': 50, 'R': 10, 'H': 20, '2B': 5, 
@@ -189,16 +201,14 @@ def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0
                      'IBB': 1, 'WP': 2, 'HBP': 2, 'BK': 1, 'BFP': 100,
                      'GF': 5, 'R': 10, 'SH': 0, 'SF': 0, 'GIDP': 3}
     
-    
     if player_type == 'bat':
-        stats = sort_batters(metric, n, year, min_ab, r=False)
+        stats = sort_batters(year, metric, n, minimum)
         # incr_value = incr_values_b[metric]
     elif player_type == 'pit':
-        stats = sort_pitchers(metric, n, year, min_ab, r=False)
+        stats = sort_pitchers(year, metric, n, minimum, True)
         # incr_value = incr_values_p[metric]
     else:
         raise ValueError
-    
     """
     if incr_value < 1:
         w = 0.35
@@ -209,8 +219,8 @@ def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0
     else:
         w = 4
     """
-    if player_type == 'pit' and (metric == 'SO' or metric == 'W' or metric == 'GIDP'):
-        stats.reverse()
+    
+    stats.reverse()
     
     values = [stats[i][1] for i in range(0, len(stats))]
     groups = []
@@ -218,7 +228,7 @@ def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0
         max_val = 6.0
     else:
         max_val = stats[-1][1]
-    
+        
     if metric == 'ERA':
         incr_val = 0.6
     else:
@@ -251,7 +261,11 @@ def plot_metric_stats(player_type, metric, n=float('inf'), year="2019", min_ab=0
     plt.bar(x_labels, groups, width=w, tick_label=x_labels,
                 edgecolor=(0,0,0), linewidth=1)
     
-    title = metric + ', ' + year
+    if player_type == 'bat': 
+        min_str = 'min ab = '
+    elif player_type == 'pit':
+        min_str = 'min ip = '
+    title = metric + ', ' + year + ', ' + min_str + str(minimum)
     plt.title(title, fontsize=24)
     plt.xlabel('Total ' + metric, fontsize=12)
     plt.ylabel('Number of players', fontsize=12)
@@ -283,9 +297,55 @@ def get_path(query):
     
     return ds
     
+# TODO - add playerstat, playerstats arguments -> remove defaults 
+# for all functions.
 def main():
     """Main for baseball_stats."""
-    plot_metric_stats('bat', '2B')
+    desc_str = """
+    This program accepts command line input and outputs 
+    desired baseball statistics.
+    
+    Argument Formatting:
+    
+    YEAR: year\n
+    PLAYERTYPE: "bat" or "pit"
+    PLAYERNAME: lastname,firstname
+    STAT: stat {SEE STATS SUPPORTED}
+    TOTALPLAYERS: total players, use "A" for all players
+    MINIMUM: minimum
+    """
+  
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=desc_str)
+
+    parser.add_argument('--playerstat', nargs=4, metavar=('PLAYERTYPE', 
+        'YEAR', 'PLAYERNAME', 'STAT'))
+    parser.add_argument('--playerstats', nargs=3, metavar=('PLAYERTYPE',
+        'YEAR', 'PLAYERNAME'))
+    parser.add_argument('--rank', nargs=5, metavar=('PLAYERTYPE', 
+        'YEAR', 'STAT', 'TOTALPLAYERS', 'MINIMUM'))
+    parser.add_argument('--graph', nargs=5, metavar=('PLAYERTYPE',
+        'YEAR', 'STAT', 'TOTALPLAYERS', 'MINIMUM'))
+    
+    args = parser.parse_args()
+    
+    if args.playerstat:
+        args.playerstat[2] = args.playerstat[2].split(',');
+        print(get_stat(*args.playerstat))
+    elif args.playerstats:
+        args.playerstats[2] = args.playerstats[2].split(',');
+        print(get_stats(*args.playerstats))
+    elif args.rank:
+        print(sort_players(*args.rank))
+    elif args.graph:
+        if args.graph[3] == 'A':
+            args.graph[3] = float('inf')
+        else:
+            args.graph[3] = int(args.graph[3])
+        args.graph[4] = int(args.graph[4])
+        print(plot_metric_stats(*args.graph))
+    else:
+        print('Improper usage. For help, use baseball_stats.py -h')
     
 if __name__ == '__main__':
     main()
