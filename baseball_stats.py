@@ -12,7 +12,7 @@ from player import Player
 #      X - differentiate between players with same name
 #      - fixed bar width for chart
 
-def sort_batters(year, metric, n, min_ab, r=True):
+def sort_batters(metric, n='A', min_ab=0, year='', r=True):
     """
     Sort a given number of batters in a given year by a provided metric. 
     If no number of players is provided, sort all players in the 
@@ -21,8 +21,6 @@ def sort_batters(year, metric, n, min_ab, r=True):
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
-    print(n)
-    
     if n == 'A':
         n = float('inf');
         
@@ -32,6 +30,9 @@ def sort_batters(year, metric, n, min_ab, r=True):
     
     with open(data) as f:
         reader = csv.DictReader(f)
+        
+        if year == '':
+            year = '2020'
         
         for row in reader:
             if row['yearID'] == year:
@@ -43,7 +44,7 @@ def sort_batters(year, metric, n, min_ab, r=True):
                         n_val = batters[i][1] + val
                         batters[i] = (pID, n_val)
                         repeat_player = True
-                if int(row['AB']) > min_ab and repeat_player == False:
+                if int(row['AB']) >= min_ab and repeat_player == False:
                     batters.append((pID, val))   
            
     sb = sorted(batters, key=itemgetter(1), reverse=r)
@@ -53,7 +54,7 @@ def sort_batters(year, metric, n, min_ab, r=True):
     else:
         return sb
     
-def sort_pitchers(year, metric, n, min_ip, r=False):
+def sort_pitchers(metric, n='A', min_ip=0, year='', r=False):
     """
     Sort a given number of pitchers in a given year by a provided 
     metric. If no number of players is provided, sort all players in the 
@@ -62,8 +63,6 @@ def sort_pitchers(year, metric, n, min_ip, r=False):
     Returns a sorted list containing tuples with the player's name and 
     relevant metric.
     """
-    print(n)
-    
     if n == 'A':
         n = float('inf');
         
@@ -77,6 +76,9 @@ def sort_pitchers(year, metric, n, min_ip, r=False):
     
     with open(data) as f:
         reader = csv.DictReader(f)
+        
+        if year == '':
+            year = '2020'
         
         for row in reader:
             if row['yearID'] == year:
@@ -307,7 +309,7 @@ def main():
     
     Argument Formatting:
     
-    YEAR: year\n
+    YEAR: year
     PLAYERTYPE: "bat" or "pit"
     PLAYERNAME: lastname,firstname
     STAT: stat {SEE STATS SUPPORTED}
