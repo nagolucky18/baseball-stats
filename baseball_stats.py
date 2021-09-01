@@ -135,9 +135,9 @@ def sort_pitchers(metric, n='A', min_ip=0, year='', r=False):
 def sort_players(player_type, year, metric, n, minimum):
     """Sort players according to the player_type provided."""
     if player_type == 'bat':
-        return sort_batters(year, metric, int(n), int(minimum))
+        return sort_batters(metric, int(n), int(minimum), year)
     elif player_type == 'pit':
-        return sort_pitchers(year, metric, int(n), int(minimum))
+        return sort_pitchers(metric, int(n), int(minimum), year)
     
 # Represent player name as tuple (last, first)
 def get_stat(player_type, year, player_name, stat):
@@ -204,10 +204,10 @@ def plot_metric_stats(player_type, year, metric, n, minimum):
                      'GF': 5, 'R': 10, 'SH': 0, 'SF': 0, 'GIDP': 3}
     
     if player_type == 'bat':
-        stats = sort_batters(year, metric, n, minimum)
+        stats = sort_batters(metric, n, minimum, year)
         # incr_value = incr_values_b[metric]
     elif player_type == 'pit':
-        stats = sort_pitchers(year, metric, n, minimum, True)
+        stats = sort_pitchers(metric, n, minimum, year, True)
         # incr_value = incr_values_p[metric]
     else:
         raise ValueError
