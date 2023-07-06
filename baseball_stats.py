@@ -90,23 +90,29 @@ def main():
     
     args = parser.parse_args()
     
-    if args.playerstat:
-        args.playerstat[2] = args.playerstat[2].split(',');
-        print(get_stat(*args.playerstat))
-    elif args.playerstats:
-        args.playerstats[2] = args.playerstats[2].split(',');
-        print(get_stats(*args.playerstats))
-    elif args.rank:
-        print(sort_players(*args.rank))
-    elif args.graph:
-        if args.graph[3] == 'A':
-            args.graph[3] = float('inf')
+    # Catch the value error raised if a player is not in the dataset. There is currently
+    # an issue if two players share a last name AND share the first two characters of a
+    # first name.
+    try:
+        if args.playerstat:
+            args.playerstat[2] = args.playerstat[2].split(',');
+            print(get_stat(*args.playerstat))
+        elif args.playerstats:
+            args.playerstats[2] = args.playerstats[2].split(',');
+            print(get_stats(*args.playerstats))
+        elif args.rank:
+            print(sort_players(*args.rank))
+        elif args.graph:
+            if args.graph[3] == 'A':
+                args.graph[3] = float('inf')
+            else:
+                args.graph[3] = int(args.graph[3])
+            args.graph[4] = int(args.graph[4])
+            print(plot_metric_stats(*args.graph))
         else:
-            args.graph[3] = int(args.graph[3])
-        args.graph[4] = int(args.graph[4])
-        print(plot_metric_stats(*args.graph))
-    else:
-        print('Improper usage. For help, use baseball_stats.py -h')
+            print('Improper usage. For help, use baseball_stats.py -h')
+    except ValueError:
+        print('Name not in dataset.')
     
 if __name__ == '__main__':
     main()

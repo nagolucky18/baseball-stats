@@ -5,6 +5,8 @@ import unittest
 from player import Player
 import baseball_stats as bst
 
+# There scenario where the user is not in the dataset is currently not covered.
+
 class PlayerTestCase(unittest.TestCase):
     """Test cases for the player class."""
 
@@ -37,19 +39,20 @@ class PlayerTestCase(unittest.TestCase):
     def test_get_stat(self):
         """Test get_stat()."""
         # Ensure single stat matches for a given batter in a given year.
-        year = '2020'
+        year = '2022'
         player_name = ('myers', 'wil')
         player_type = 'bat'
-        ps = bst.get_stat(player_type, year, player_name, '2B')
-        test_ps = {'2B': '14'}
+        ps = bst.get_stat(player_type, year, player_name, 'H')
+        test_ps = {'H': '68'}
         self.assertEqual(ps, test_ps)
         
+        
         # Ensure single stat matches for a given pitcher in a given year.
-        year = '2020'
+        year = '2021'
         player_name = ('ohtani', 'shohei')
         player_type = 'pit'
         ps = bst.get_stat(player_type, year, player_name, 'SO')
-        test_ps = {'SO': '3'}
+        test_ps = {'SO': '156'}
         self.assertEqual(ps, test_ps)
         
     def test_get_stats(self):
